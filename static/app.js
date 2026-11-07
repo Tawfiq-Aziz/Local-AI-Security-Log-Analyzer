@@ -13,7 +13,8 @@ const dropzone = document.getElementById('dropzone');
 const fileInfo = document.getElementById('fileInfo');
 const startBtn = document.getElementById('startBtn');
 const sampleBtn = document.getElementById('sampleBtn');
-const uploadSection = document.getElementById('uploadSection');
+const mainDashboardView = document.getElementById('mainDashboardView');
+const historySection = document.getElementById('historySection');
 const progressSection = document.getElementById('progressSection');
 const reportSection = document.getElementById('reportSection');
 const progressStatusText = document.getElementById('progressStatusText');
@@ -27,7 +28,9 @@ const feedConsole = document.getElementById('feedConsole');
 const exportBtn = document.getElementById('exportBtn');
 const resetBtn = document.getElementById('resetBtn');
 const procRamText = document.getElementById('procRamText');
+const sysRamText = document.getElementById('sysRamText');
 const statusBadge = document.getElementById('statusBadge');
+const refreshRunsBtn = document.getElementById('refreshRunsBtn');
 
 // 1. Telemetry Polling
 async function updateTelemetry() {
@@ -35,15 +38,71 @@ async function updateTelemetry() {
     const res = await fetch('/api/telemetry');
     if (!res.ok) return;
     const data = await res.json();
-    if (procRamText) {
-      procRamText.textContent = `${data.process_ram_mb} MB`;
-    }
+    if (procRamText) procRamText.textContent = `${data.process_ram_mb} MB`;
+    if (sysRamText) sysRamText.textContent = `${data.system_used_ram_mb} / ${data.ram_limit_mb} MB`;
   } catch (err) {}
 }
 setInterval(updateTelemetry, 3000);
 updateTelemetry();
 
-// 2. File Selection & Drag-and-Drop
+// 2. Load Past Runs History
+async function loadPastRuns() {
+  const tbody = document.getElementById('runsTableBody');
+  if (!tbody) return;
+  try {
+    const res = await fetch('/api/runs');
+    if (!res.ok) return;
+    const runs = await res.json();
+    if (!runs || runs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="table-empty">No previous analyses recorded yet.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = '';
+    // Show newest first
+    runs.slice().reverse().forEach(run => {
+      const sum = run.summary || {};
+      const threats = sum.total_incidents_found || 0;
+      const tagClass = threats > 0 ? 'run-threat-alert' : 'run-threat-clean';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><code>${run.job_id}</code></td>
+        <td>${sum.total_lines_analyzed || '--'}</td>
+        <td>${sum.total_chunks_processed || '--'}</td>
+        <td><span class="run-threat-tag ${tagClass}">${threats} threat${threats === 1 ? '' : 's'}</span></td>
+        <td>${sum.total_analysis_time_seconds ? sum.total_analysis_time_seconds + 's' : '--'}</td>
+        <td><button class="btn-view-run" onclick="viewPastReport('${run.job_id}')">View</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    tbody.innerHTML = '<tr><td colspan="6" class="table-empty">Could not load history.</td></tr>';
+  }
+}
+loadPastRuns();
+if (refreshRunsBtn) refreshRunsBtn.addEventListener('click', loadPastRuns);
+
+// Global function to open past report directly
+window.viewPastReport = async function(jobId) {
+  try {
+    const res = await fetch(`/api/report/${jobId}`);
+    if (!res.ok) throw new Error('Report file not found');
+    const report = await res.json();
+    currentJobId = jobId;
+    currentReport = report;
+
+    if (mainDashboardView) mainDashboardView.style.display = 'none';
+    if (historySection) historySection.style.display = 'none';
+    progressSection.style.display = 'none';
+    reportSection.style.display = 'block';
+
+    renderReport(report);
+  } catch (err) {
+    alert('Error loading report: ' + err.message);
+  }
+};
+
+// 3. File Selection & Drag-and-Drop
 dropzone.addEventListener('click', () => fileInput.click());
 
 dropzone.addEventListener('dragover', (e) => {
@@ -77,7 +136,7 @@ function handleFileSelected(file) {
   startBtn.disabled = false;
 }
 
-// 3. Start Analysis Actions
+// 4. Start Analysis Actions
 startBtn.addEventListener('click', async () => {
   if (!selectedFile) return;
   const formData = new FormData();
@@ -111,10 +170,11 @@ sampleBtn.addEventListener('click', async () => {
   }
 });
 
-// 4. Stream Analysis Progress via SSE
+// 5. Stream Live Analysis Progress via SSE
 function beginAnalysisStream(jobId, lineCount) {
   currentJobId = jobId;
-  uploadSection.style.display = 'none';
+  if (mainDashboardView) mainDashboardView.style.display = 'none';
+  if (historySection) historySection.style.display = 'none';
   progressSection.style.display = 'block';
   reportSection.style.display = 'none';
 
@@ -163,6 +223,7 @@ function beginAnalysisStream(jobId, lineCount) {
         eventSource.close();
         currentReport = msg.report;
         renderReport(currentReport);
+        loadPastRuns();
       } else if (msg.type === 'error') {
         clearInterval(timerInterval);
         eventSource.close();
@@ -182,13 +243,14 @@ function beginAnalysisStream(jobId, lineCount) {
           if (eventSource) eventSource.close();
           currentReport = await res.json();
           renderReport(currentReport);
+          loadPastRuns();
         }
       } catch (err) {}
     }, 2000);
   };
 }
 
-// 5. Render Deduplicated Final Report
+// 6. Render Deduplicated Final Report
 function renderReport(report) {
   progressSection.style.display = 'none';
   reportSection.style.display = 'block';
@@ -241,7 +303,7 @@ function renderReport(report) {
   });
 }
 
-// 6. Export and Reset Actions
+// 7. Export and Reset Actions
 exportBtn.addEventListener('click', () => {
   if (!currentReport) return;
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(currentReport, null, 2));
@@ -261,7 +323,9 @@ resetBtn.addEventListener('click', () => {
   fileInfo.textContent = '';
   startBtn.disabled = true;
   sampleBtn.disabled = false;
-  uploadSection.style.display = 'block';
+  if (mainDashboardView) mainDashboardView.style.display = 'grid';
+  if (historySection) historySection.style.display = 'block';
   progressSection.style.display = 'none';
   reportSection.style.display = 'none';
+  loadPastRuns();
 });

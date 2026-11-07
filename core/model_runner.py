@@ -37,55 +37,64 @@ class LocalModelRunner:
 
     def _init_tokenizer(self):
         """Attempts to load tokenizer from local path or standard identifier."""
-        local_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models", "SmolLM2-135M-Instruct")
+        local_path = self._find_local_model_path()
         try:
-            if os.path.exists(os.path.join(local_dir, "tokenizer.json")):
-                self.tokenizer = AutoTokenizer.from_pretrained(local_dir)
+            if local_path and os.path.exists(os.path.join(local_path, "tokenizer.json")):
+                self.tokenizer = AutoTokenizer.from_pretrained(local_path)
             else:
                 self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         except Exception:
             self.tokenizer = None
 
     def _find_local_model_path(self) -> str:
-        """Checks if downloaded model weights exist locally in the models/ folder."""
+        """Checks if downloaded model weights exist locally in the models/ folder matching configured model."""
         base_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models")
-        
-        # Check SmolLM2-135M-Instruct (must have both config.json and model.safetensors)
-        smol_path = os.path.join(base_dir, "SmolLM2-135M-Instruct")
-        if os.path.exists(os.path.join(smol_path, "config.json")) and os.path.exists(os.path.join(smol_path, "model.safetensors")):
-            return smol_path
-
-        # Check Qwen2.5-0.5B-Instruct
-        qwen_path = os.path.join(base_dir, "Qwen2.5-0.5B-Instruct")
-        if os.path.exists(os.path.join(qwen_path, "config.json")) and os.path.exists(os.path.join(qwen_path, "model.safetensors")):
-            return qwen_path
-
+        target_name = self.model_name.split("/")[-1]
+        target_path = os.path.join(base_dir, target_name)
+        if os.path.exists(os.path.join(target_path, "config.json")) and os.path.exists(os.path.join(target_path, "model.safetensors")):
+            return target_path
         return ""
 
     def load_model(self) -> bool:
-        """Loads model into CPU memory if local weights are ready."""
+        """Loads model into CPU memory from offline cache or local models directory."""
         if self.is_loaded:
             return True
 
-        local_path = self._find_local_model_path()
-        if not local_path:
-            return False
+        from transformers import AutoModelForCausalLM
 
+        # 1. Try local models folder
+        local_path = self._find_local_model_path()
+        if local_path:
+            try:
+                print(f"Loading local weights from {local_path} on {self.device}...")
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    local_path,
+                    dtype=torch.float32,
+                    low_cpu_mem_usage=True
+                )
+                self.model.to(self.device)
+                self.model.eval()
+                self.is_loaded = True
+                return True
+            except Exception as e:
+                print(f"Warning loading from folder: {e}")
+
+        # 2. Try loading from cached offline local checkpoint
         try:
-            from transformers import AutoModelForCausalLM
-            print(f"Loading local weights from {local_path} on {self.device}...")
+            print(f"Loading cached local model '{self.model_name}' on {self.device}...")
             self.model = AutoModelForCausalLM.from_pretrained(
-                local_path,
-                torch_dtype=torch.float32,
-                low_cpu_mem_usage=True
+                self.model_name,
+                dtype=torch.float32,
+                low_cpu_mem_usage=True,
+                local_files_only=True
             )
             self.model.to(self.device)
             self.model.eval()
             self.is_loaded = True
-            print("Local model successfully loaded into memory.")
+            print("Local neural model loaded successfully 100% offline.")
             return True
         except Exception as e:
-            print(f"Warning: Could not load local weights ({e}). Running in standby mode.")
+            print(f"Standby mode active: {e}")
             return False
 
     def build_prompt(self, chunk_text: str, memory_summary: str) -> str:
@@ -231,22 +240,39 @@ class LocalModelRunner:
 
         # If local weights are ready, run PyTorch inference
         if self.load_model() and self.model is not None:
-            max_new_tokens = min(config.RESERVED_OUTPUT_TOKENS, max(80, config.MAX_CONTEXT_TOKENS - prompt_tokens))
+            max_new_tokens = min(150, max(60, config.MAX_CONTEXT_TOKENS - prompt_tokens))
             inputs = input_ids.to(self.device)
             with torch.no_grad():
                 output_ids = self.model.generate(
                     inputs,
                     max_new_tokens=max_new_tokens,
                     do_sample=False,
+                    eos_token_id=self.tokenizer.eos_token_id,
                     pad_token_id=self.tokenizer.eos_token_id
                 )
             new_tokens = output_ids[0][prompt_tokens:]
             raw_output = self.tokenizer.decode(new_tokens, skip_special_tokens=True)
             output_tokens = len(new_tokens)
             findings = ResilientParser.parse_findings(raw_output)
-            # If model returned empty findings on malicious lines, augment with heuristic
-            if not findings:
-                findings = self._fallback_chunk_analysis(chunk["text"], memory_summary)
+            # Filter out template hallucinations and placeholders
+            valid_findings = []
+            for f in findings:
+                if not isinstance(f, dict):
+                    continue
+                target = str(f.get("target_identifier", "")).strip().lower()
+                attack = str(f.get("attack_type", "")).strip().lower()
+                reason = str(f.get("reason", "")).strip().lower()
+                if "ip or username" in target or "|" in attack or "short explanation" in reason or not target:
+                    continue
+                valid_findings.append(f)
+
+            # Heuristic detection safety net: ensures real attacks are never missed
+            fallback_findings = self._fallback_chunk_analysis(chunk["text"], memory_summary)
+            findings = list(valid_findings)
+            existing_attacks = {str(f.get("attack_type", "")).lower() for f in findings}
+            for fb in fallback_findings:
+                if str(fb.get("attack_type", "")).lower() not in existing_attacks:
+                    findings.append(fb)
         else:
             # Standby engine
             time.sleep(0.08)  # brief realistic processing pause

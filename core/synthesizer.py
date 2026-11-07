@@ -39,6 +39,10 @@ class ReportSynthesizer:
             target = str(item.get("target_identifier", "Unknown Target")).strip()
             attack_type = str(item.get("attack_type", "Suspicious Activity")).strip()
             
+            # Skip any template placeholders
+            if "ip or username" in target.lower() or "|" in attack_type:
+                continue
+
             # Simple grouping key: IP/Identifier + Attack Category
             key = f"{target}::{attack_type.lower()}"
 
@@ -95,13 +99,20 @@ class ReportSynthesizer:
             if len(sorted_lines) >= 5 and inc["severity"] in ["Low", "Medium"]:
                 inc["severity"] = "High"
 
+            # Deduplicate reasons
+            clean_reasons = []
+            for r in inc["reasons"]:
+                clean_r = r.strip()
+                if clean_r and clean_r not in clean_reasons and "short explanation" not in clean_r.lower():
+                    clean_reasons.append(clean_r)
+
             final_incidents.append({
                 "attack_type": inc["attack_type"],
                 "target_identifier": inc["target_identifier"],
                 "severity": inc["severity"],
                 "line_numbers": sorted_lines,
                 "evidence_count": len(sorted_lines),
-                "reason": " ".join(inc["reasons"][:2]),
+                "reason": " ".join(clean_reasons[:2]) if clean_reasons else "Suspicious event observed in log stream.",
                 "suggested_action": inc["suggested_actions"][0] if inc["suggested_actions"] else "Monitor entity"
             })
             severity_counts[inc["severity"]] += 1

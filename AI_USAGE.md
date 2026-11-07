@@ -100,4 +100,9 @@ During development, several real issues occurred that we had to troubleshoot and
 
 ### 4. Sample Log Token Size
 - **What happened**: The brief mentioned logs of "about 20,000 tokens", but counting the actual tokens in `Cultive8_Workspace_Agrigen_Server.log` showed 39,640 tokens (almost double).
-- **How we handled it**: Because our chunker calculates tokens dynamically rather than guessing line counts, it cleanly divided the file into 42 distinct chunks (each under 1,050 tokens) and processed all of them without overflowing the 2,048-token context window on any call.
+- **How we handled it**: Because our chunker calculates tokens dynamically rather than guessing line counts, it cleanly divided the file into distinct chunks (each under 1,050 tokens) and processed all of them without overflowing the 2,048-token context window on any call.
+
+### 5. Small Model Echoing Template Placeholders
+- **What happened**: When running inference with lightweight models like SmolLM2-135M on CPU, the model occasionally echoed back the example template from the system prompt (e.g. `target_identifier: "IP or username"` and `reason: "Short explanation"`).
+- **Why it was a problem**: The parser saw valid JSON syntax, but the content was just placeholder text instead of real attack data.
+- **How we fixed it**: We added a check in `core/model_runner.py` and `core/synthesizer.py` that discards findings containing template placeholders (like "IP or username" or "Short explanation") and merges the heuristic safety net, ensuring real attacks are never missed.

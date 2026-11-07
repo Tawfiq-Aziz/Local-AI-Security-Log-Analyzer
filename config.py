@@ -13,9 +13,10 @@ MEMORY_STATE_BUDGET = 350
 LOG_CHUNK_BUDGET = 1050
 RESERVED_OUTPUT_TOKENS = 350
 
-# Default model: Qwen2.5-0.5B-Instruct
-# It is very lightweight (~980MB weights), fast on 2 CPU cores, and fits easily inside 4GB RAM.
-DEFAULT_MODEL_NAME = "Qwen/Qwen2.5-0.5B-Instruct"
+# Default model: HuggingFaceTB/SmolLM2-135M-Instruct
+# Ultra-lightweight (135M parameters, ~270MB weights), runs offline from local disk,
+# executes fast on 2 CPU cores, and fits easily inside the 4GB RAM budget (<350MB RAM).
+DEFAULT_MODEL_NAME = "HuggingFaceTB/SmolLM2-135M-Instruct"
 
 # Default compute device: 'cpu' strictly complies with the 2 vCPU, no-GPU requirement.
 DEFAULT_DEVICE = "cpu"

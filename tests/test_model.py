@@ -31,7 +31,7 @@ def run():
     print(f"Inference completed in {result['duration_seconds']}s")
     print(f"Prompt tokens: {result['prompt_tokens']}, Output tokens: {result['output_tokens']}")
     print(f"Findings: {result['findings']}")
-    print(f"Raw output:\n{result['raw_output']}")
+    print(f"Raw output (first 200 chars): {repr(result['raw_output'][:200])}")
 
 if __name__ == "__main__":
     run()

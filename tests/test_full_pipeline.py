@@ -20,9 +20,11 @@ def test_full_run():
     def callback(ev):
         if ev["type"] == "chunk_done":
             if ev["new_findings"]:
-                print(f"  [ALERT] Chunk {ev['chunk_index']}: Found {len(ev['new_findings'])} finding(s)!")
+                print(f"  [ALERT] Chunk {ev['chunk_index']}: Found {len(ev['new_findings'])} finding(s)!", flush=True)
+            else:
+                print(f"  [DONE] Chunk {ev['chunk_index']} analyzed ({ev['tokens_used']} tokens)", flush=True)
         elif ev["type"] == "completed":
-            print("  [COMPLETED] Pipeline execution finished!")
+            print("  [COMPLETED] Pipeline execution finished!", flush=True)
 
     report = pipeline.run_analysis(
         log_content=content,

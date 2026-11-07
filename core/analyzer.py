@@ -96,20 +96,28 @@ class LogAnalyzerPipeline:
                     "telemetry": SystemMonitor.get_metrics()
                 })
 
-            try:
-                # Run through the local AI model
-                result = self.model_runner.analyze_chunk(chunk, memory_summary)
-            except Exception as e:
-                # Resilient error handling: if a call fails, record fallback finding and continue
-                result = {
-                    "chunk_index": idx,
-                    "total_chunks": total_chunks,
-                    "prompt_tokens": 0,
-                    "output_tokens": 0,
-                    "duration_seconds": 0.0,
-                    "findings": [],
-                    "error": str(e)
-                }
+            # Safe retry loop: attempt up to 2 times, then fallback without losing findings
+            result = None
+            for attempt in range(2):
+                try:
+                    result = self.model_runner.analyze_chunk(chunk, memory_summary)
+                    break
+                except Exception as e:
+                    if attempt == 0:
+                        # Clean memory and retry once
+                        gc.collect()
+                        continue
+                    # On final failure, use heuristic fallback to preserve completed findings
+                    fallback_findings = self.model_runner._fallback_chunk_analysis(chunk["text"], memory_summary)
+                    result = {
+                        "chunk_index": idx,
+                        "total_chunks": total_chunks,
+                        "prompt_tokens": 0,
+                        "output_tokens": 0,
+                        "duration_seconds": 0.0,
+                        "findings": fallback_findings,
+                        "error": str(e)
+                    }
 
             # If the model found attacks, record them into memory for subsequent chunks
             for f in result.get("findings", []):

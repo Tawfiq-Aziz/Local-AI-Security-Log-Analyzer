@@ -167,20 +167,25 @@ class LocalModelRunner:
                 ip = ip_match.group(2) if ip_match else "Unknown IP"
                 sqli_lines.append((line_no, ip))
 
-            # 3. Check for Directory Scanning / Path Traversal
-            sensitive_indicators = [".env", ".git", "wp-admin", "phpmyadmin", "backup.sql", "etc/passwd", "actuator", "server-status"]
-            if any(s in line for s in sensitive_indicators):
+            # 4. Check for Directory Scanning / Path Traversal
+            sensitive_indicators = [".env", ".git", "wp-admin", "phpmyadmin", "backup.sql", "etc/passwd", "actuator", "server-status", "..%2f"]
+            if any(s in line.lower() for s in sensitive_indicators):
                 ip_match = re.search(r'("client_ip"|\bclient_ip\b)[\s:=]+"([^"]+)"', line)
                 ip = ip_match.group(2) if ip_match else "Unknown IP"
                 path_match = re.search(r'("path"|\bpath\b)[\s:=]+"([^"]+)"', line)
                 path = path_match.group(2) if path_match else "sensitive file"
                 scanned_paths.append((line_no, ip, path))
 
-            # 4. Check for 403 Forbidden Access Denied
-            if "status\":403" in line or "access_denied" in line:
+            # 5. Check for Account Compromise (Successful login or data export after repeated brute-force)
+            if ("/api/v1/auth/login" in line and ("status\":200" in line or "auth_result\":\"success\"" in line)) or \
+               ("/api/v1/workspaces" in line and "export" in line and "status\":200" in line):
                 ip_match = re.search(r'("client_ip"|\bclient_ip\b)[\s:=]+"([^"]+)"', line)
+                user_match = re.search(r'("username"|\busername\b)[\s:=]+"([^"]+)"', line)
                 ip = ip_match.group(2) if ip_match else "Unknown IP"
-                unauthorized_lines.append((line_no, ip))
+                username = user_match.group(2) if user_match else "user"
+                # Check if this specific IP was flagged with prior failed logins in the blackboard memory
+                if f"IP {ip}" in memory_summary and ("failed login" in memory_summary.lower() or "brute-force" in memory_summary.lower()):
+                    unauthorized_lines.append((line_no, ip, username))
 
         # Generate findings for this chunk
         if failed_logins:
@@ -219,6 +224,19 @@ class LocalModelRunner:
                 "line_numbers": lines_list,
                 "reason": f"Probing sensitive administrative and system endpoints: {', '.join(probed[:3])}.",
                 "suggested_action": "Blacklist IP in edge firewall and verify sensitive files are inaccessible."
+            })
+
+        if unauthorized_lines:
+            lines_list = [ln for ln, _, _ in unauthorized_lines]
+            ip = unauthorized_lines[0][1]
+            username = unauthorized_lines[0][2]
+            findings.append({
+                "attack_type": "Account Compromise / Unauthorized Access",
+                "severity": "Critical",
+                "target_identifier": f"{ip} ({username})",
+                "line_numbers": lines_list,
+                "reason": f"Successful login and data export for '{username}' following repeated failed login attempts from IP {ip}.",
+                "suggested_action": f"Immediately revoke active sessions for '{username}', force password reset, and block IP {ip}."
             })
 
         return findings

@@ -78,6 +78,13 @@ Analyze the log lines above. Link any related behavior with the prior activity. 
 Assistant:
 ```
 
+### C. Prompt Changes and Iterations
+During development, we updated and refined the prompt several times based on test results:
+1. **Added `<log_data>` XML tags for prompt injection defense**: At first, raw log lines were placed directly into the prompt. To prevent malicious log payloads from tricking the model into following instructions, we wrapped the log lines inside `<log_data>` tags and instructed the model to treat all text inside as passive data only.
+2. **Added rule against false positives**: The model initially flagged normal server errors and routine health check requests as attacks. We added a clear instruction: *"Do NOT report normal internal server errors or health checks as attacks without evidence."*
+3. **Provided an exact JSON schema**: Instead of just saying "return JSON", we provided the exact structure with keys (`attack_type`, `severity`, `target_identifier`, `line_numbers`, `reason`, `suggested_action`). This made parsing much more reliable.
+4. **Tuned generation length for CPU speed**: We reduced `max_new_tokens` to 150 with early stopping (`eos_token_id`) so the model stops talking once the JSON is complete, speeding up CPU execution significantly.
+
 ---
 
 ## 4. Real Mistakes Encountered and How We Fixed Them

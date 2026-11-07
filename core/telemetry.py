@@ -25,8 +25,8 @@ class SystemMonitor:
             sys_total_mb = sys_mem.total / (1024 * 1024)
             sys_percent = sys_mem.percent
 
-            # Check if exceeding the 4 GB limit
-            is_warning = sys_used_mb > (config.MAX_RAM_MB * 0.9)  # Alert at 90% of 4GB
+            # Check if this process is exceeding the 4 GB application limit
+            is_warning = proc_mem_mb > (config.MAX_RAM_MB * 0.9)  # Alert if process reaches 90% of 4GB (3.6GB)
 
             return {
                 "process_ram_mb": round(proc_mem_mb, 1),

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Local AI Security Log Analyzer</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="navbar">
+    <div class="nav-brand">
+      <div class="shield-icon">🛡️</div>
+      <div>
+        <h1>Local AI Security Log Analyzer</h1>
+        <p class="subtitle">Offline LLM • 2,048 Token Budget • 4 GB RAM Guard</p>
+      </div>
+    </div>
+    
+    <!-- Real-time Telemetry Monitor -->
+    <div class="telemetry-bar" id="telemetryBar">
+      <div class="telemetry-item">
+        <span class="label">System RAM:</span>
+        <span class="value" id="ramText">-- / 4096 MB</span>
+        <div class="mini-progress-track">
+          <div class="mini-progress-fill" id="ramFill" style="width: 25%;"></div>
+        </div>
+      </div>
+      <div class="telemetry-item">
+        <span class="label">Process RAM:</span>
+        <span class="value" id="procRamText">-- MB</span>
+      </div>
+      <div class="telemetry-item">
+        <span class="label">Status:</span>
+        <span class="badge badge-online" id="statusBadge">Ready</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    
+    <!-- Step 1: Upload & Input Section -->
+    <section class="card upload-card" id="uploadSection">
+      <h2>1. Select Log File</h2>
+      <p class="description">Upload your server access log (.log or .txt) to split and analyze with the local model.</p>
+      
+      <div class="dropzone" id="dropzone">
+        <div class="drop-icon">📄</div>
+        <p class="drop-text">Drag & drop your log file here, or <label for="fileInput" class="browse-link">browse</label></p>
+        <input type="file" id="fileInput" accept=".log,.txt" style="display: none;">
+        <span class="file-info" id="fileInfo">No file selected</span>
+      </div>
+
+      <div class="action-row">
+        <button class="btn btn-primary" id="startBtn" disabled>Start Security Analysis</button>
+        <span class="or-divider">or</span>
+        <button class="btn btn-secondary" id="sampleBtn">⚡ Analyze Sample Log (server.log)</button>
+      </div>
+    </section>
+
+    <!-- Step 2: Live Progress & Telemetry Section -->
+    <section class="card progress-card" id="progressSection" style="display: none;">
+      <div class="card-header">
+        <h2>2. Analysis in Progress</h2>
+        <span class="spinner" id="spinner"></span>
+      </div>
+
+      <div class="progress-details">
+        <div class="progress-labels">
+          <span id="progressStatusText">Starting analysis...</span>
+          <span id="chunkFraction">Chunk 0 / 0</span>
+        </div>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="progressBarFill" style="width: 0%;"></div>
+        </div>
+      </div>
+
+      <!-- Live metrics counters -->
+      <div class="metrics-grid">
+        <div class="metric-box">
+          <span class="metric-val" id="metricLines">0</span>
+          <span class="metric-lbl">Total Lines</span>
+        </div>
+        <div class="metric-box">
+          <span class="metric-val" id="metricTokens">0</span>
+          <span class="metric-lbl">Tokens Processed</span>
+        </div>
+        <div class="metric-box">
+          <span class="metric-val" id="metricAlerts">0</span>
+          <span class="metric-lbl">Attacks Flagged</span>
+        </div>
+        <div class="metric-box">
+          <span class="metric-val" id="metricTime">0.0s</span>
+          <span class="metric-lbl">Elapsed Time</span>
+        </div>
+      </div>
+
+      <!-- Real-time Event Stream Log -->
+      <div class="live-feed">
+        <h3>Live Activity Feed</h3>
+        <div class="feed-console" id="feedConsole">
+          <div class="feed-entry system">[SYSTEM] Pipeline initialized with 2,048-token context window.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 3: Consolidated Final Report Section -->
+    <section class="card report-card" id="reportSection" style="display: none;">
+      <div class="report-header">
+        <div>
+          <h2>3. Security Threat Assessment Report</h2>
+          <p class="subtitle" id="reportSubtitle">Consolidated findings across all log parts</p>
+        </div>
+        <div class="report-actions">
+          <button class="btn btn-secondary" id="exportBtn">📥 Export JSON</button>
+          <button class="btn btn-outline" id="resetBtn">🔄 New Analysis</button>
+        </div>
+      </div>
+
+      <!-- Executive KPI Cards -->
+      <div class="kpi-banner">
+        <div class="kpi-card critical">
+          <span class="kpi-num" id="kpiCritical">0</span>
+          <span class="kpi-label">Critical</span>
+        </div>
+        <div class="kpi-card high">
+          <span class="kpi-num" id="kpiHigh">0</span>
+          <span class="kpi-label">High</span>
+        </div>
+        <div class="kpi-card medium">
+          <span class="kpi-num" id="kpiMedium">0</span>
+          <span class="kpi-label">Medium</span>
+        </div>
+        <div class="kpi-card low">
+          <span class="kpi-num" id="kpiLow">0</span>
+          <span class="kpi-label">Low</span>
+        </div>
+      </div>
+
+      <!-- List of Deduplicated Incidents -->
+      <div class="incidents-container">
+        <h3>Identified Attack Vectors & Evidence</h3>
+        <div id="incidentsList">
+          <!-- Dynamically populated by app.js -->
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

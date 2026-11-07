@@ -1,0 +1,17 @@
+# Byte-compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Large AI model files (downloaded locally, should not be committed)
+models/
+
+# Virtual environment
+.venv/
+env/
+venv/
+
+# Temporary files
+*.tmp
+*.downloading
+test_bytes.bin

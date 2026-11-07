@@ -43,10 +43,17 @@ body {
   border-bottom: 1px solid var(--border-color);
 }
 
-.nav-brand h1 {
+.nav-brand .nav-title {
   font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-bright);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.nav-brand .nav-title:hover {
+  color: #fff;
 }
 
 /* Telemetry Bar */
@@ -220,6 +227,17 @@ body {
   background: var(--card-inner);
 }
 
+.btn-ghost {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: transparent;
+}
+
+.btn-ghost:hover {
+  color: var(--critical-color);
+  background: rgba(220, 38, 38, 0.08);
+}
+
 /* Progress Section */
 .progress-details {
   margin: 14px 0;
@@ -357,17 +375,22 @@ body {
 }
 
 .kpi-card {
-  padding: 10px;
-  border-radius: 4px;
+  padding: 12px 8px;
+  border-radius: 6px;
   text-align: center;
   border: 1px solid var(--border-color);
   background: var(--card-inner);
+  transition: border-color 0.15s;
 }
 
-.kpi-card.critical { border-left: 2px solid var(--critical-color); }
-.kpi-card.high { border-left: 2px solid var(--high-color); }
-.kpi-card.medium { border-left: 2px solid var(--medium-color); }
-.kpi-card.low { border-left: 2px solid var(--low-color); }
+.kpi-card:hover {
+  border-color: var(--border-hover);
+}
+
+.kpi-card.critical .kpi-num { color: #f87171; }
+.kpi-card.high .kpi-num { color: #fb923c; }
+.kpi-card.medium .kpi-num { color: #facc15; }
+.kpi-card.low .kpi-num { color: #60a5fa; }
 
 .kpi-num {
   font-size: 1.25rem;
@@ -387,108 +410,167 @@ body {
 .incidents-container h3 {
   font-size: 0.84rem;
   font-weight: 600;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   color: var(--text-bright);
 }
 
 .incident-card {
   background: var(--card-inner);
   border: 1px solid var(--border-color);
-  border-radius: 4px;
-  padding: 12px 14px;
-  margin-bottom: 8px;
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 12px;
+  transition: border-color 0.15s;
 }
 
-.incident-card.sev-Critical { border-left: 2px solid var(--critical-color); }
-.incident-card.sev-High { border-left: 2px solid var(--high-color); }
-.incident-card.sev-Medium { border-left: 2px solid var(--medium-color); }
-.incident-card.sev-Low { border-left: 2px solid var(--low-color); }
+.incident-card:hover {
+  border-color: var(--border-hover);
+}
 
-.incident-header {
+.incident-card-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 10px;
+}
+
+.incident-headline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .incident-title {
-  font-size: 0.86rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--text-bright);
 }
 
 .sev-badge {
-  padding: 1px 5px;
+  padding: 2px 7px;
   border-radius: 3px;
-  font-size: 0.65rem;
+  font-size: 0.68rem;
   font-weight: 600;
+  letter-spacing: 0.3px;
   text-transform: uppercase;
 }
 
 .sev-badge.sev-Critical {
-  background: rgba(220, 38, 38, 0.15);
-  color: var(--critical-color);
+  background: rgba(220, 38, 38, 0.18);
+  color: #ef4444;
+  border: 1px solid rgba(220, 38, 38, 0.35);
 }
 
 .sev-badge.sev-High {
-  background: rgba(234, 88, 12, 0.15);
-  color: var(--high-color);
+  background: rgba(234, 88, 12, 0.18);
+  color: #f97316;
+  border: 1px solid rgba(234, 88, 12, 0.35);
 }
 
 .sev-badge.sev-Medium {
-  background: rgba(202, 138, 4, 0.15);
-  color: var(--medium-color);
+  background: rgba(202, 138, 4, 0.18);
+  color: #eab308;
+  border: 1px solid rgba(202, 138, 4, 0.35);
 }
 
 .sev-badge.sev-Low {
-  background: rgba(37, 99, 235, 0.15);
-  color: var(--low-color);
+  background: rgba(37, 99, 235, 0.18);
+  color: #60a5fa;
+  border: 1px solid rgba(37, 99, 235, 0.35);
 }
 
-.incident-meta {
-  font-size: 0.78rem;
+.incident-target-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--card-bg);
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+}
+
+.incident-target-badge .target-label {
+  font-size: 0.68rem;
   color: var(--text-muted);
+  text-transform: uppercase;
 }
 
-.incident-target {
+.incident-target-badge .target-val {
   font-family: var(--font-mono);
+  font-size: 0.76rem;
   color: var(--text-bright);
 }
 
 .incident-reason {
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   color: var(--text-main);
-  line-height: 1.4;
+  line-height: 1.5;
 }
 
-.incident-evidence {
-  font-size: 0.76rem;
+.incident-evidence-panel {
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 8px 10px;
+}
+
+.evidence-header {
+  margin-bottom: 6px;
+}
+
+.evidence-title {
+  font-size: 0.7rem;
+  font-weight: 500;
+  text-transform: uppercase;
   color: var(--text-muted);
+  letter-spacing: 0.3px;
+}
+
+.evidence-lines {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  align-items: center;
+  gap: 5px;
 }
 
 .line-tag {
-  background: var(--card-bg);
+  background: var(--card-inner);
   border: 1px solid var(--border-color);
   color: var(--text-bright);
-  padding: 1px 4px;
-  border-radius: 2px;
+  padding: 2px 6px;
+  border-radius: 3px;
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.7rem;
 }
 
-.incident-action {
-  font-size: 0.76rem;
-  color: var(--text-muted);
-  background: rgba(255, 255, 255, 0.02);
-  padding: 5px 8px;
-  border-radius: 3px;
+.incident-action-panel {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  background: var(--card-bg);
   border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 8px 10px;
+}
+
+.action-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+
+.action-text {
+  font-size: 0.8rem;
+  color: var(--text-main);
+  line-height: 1.4;
 }
 
 .empty-state {

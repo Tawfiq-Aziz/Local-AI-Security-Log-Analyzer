@@ -7,11 +7,15 @@ let currentReport = null;
 let startTime = null;
 let timerInterval = null;
 
+// Track which "view" is active so the home link knows whether to navigate
+let currentView = 'home'; // 'home' | 'progress' | 'report'
+
 // DOM Elements
 const fileInput = document.getElementById('fileInput');
 const dropzone = document.getElementById('dropzone');
 const fileInfo = document.getElementById('fileInfo');
 const startBtn = document.getElementById('startBtn');
+const cancelFileBtn = document.getElementById('cancelFileBtn');
 const sampleBtn = document.getElementById('sampleBtn');
 const uploadSection = document.getElementById('uploadSection');
 const historySection = document.getElementById('historySection');
@@ -29,6 +33,7 @@ const exportBtn = document.getElementById('exportBtn');
 const resetBtn = document.getElementById('resetBtn');
 const procRamText = document.getElementById('procRamText');
 const statusBadge = document.getElementById('statusBadge');
+const navHomeLink = document.getElementById('navHomeLink');
 
 // 1. Telemetry Polling
 async function updateTelemetry() {
@@ -89,6 +94,7 @@ window.viewPastReport = async function(jobId) {
     historySection.style.display = 'none';
     progressSection.style.display = 'none';
     reportSection.style.display = 'block';
+    currentView = 'report';
 
     renderReport(report);
   } catch (err) {
@@ -128,6 +134,19 @@ function handleFileSelected(file) {
   selectedFile = file;
   fileInfo.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
   startBtn.disabled = false;
+  if (cancelFileBtn) cancelFileBtn.style.display = 'inline-block';
+}
+
+function clearSelectedFile() {
+  selectedFile = null;
+  fileInput.value = '';
+  fileInfo.textContent = '';
+  startBtn.disabled = true;
+  if (cancelFileBtn) cancelFileBtn.style.display = 'none';
+}
+
+if (cancelFileBtn) {
+  cancelFileBtn.addEventListener('click', clearSelectedFile);
 }
 
 // 4. Start Analysis Actions
@@ -167,6 +186,7 @@ sampleBtn.addEventListener('click', async () => {
 // 5. Stream Live Analysis Progress via SSE
 function beginAnalysisStream(jobId, lineCount) {
   currentJobId = jobId;
+  currentView = 'progress';
   uploadSection.style.display = 'none';
   historySection.style.display = 'none';
   progressSection.style.display = 'block';
@@ -246,6 +266,7 @@ function beginAnalysisStream(jobId, lineCount) {
 
 // 6. Render Final Report
 function renderReport(report) {
+  currentView = 'report';
   progressSection.style.display = 'none';
   reportSection.style.display = 'block';
 
@@ -271,29 +292,61 @@ function renderReport(report) {
     const card = document.createElement('div');
     card.className = `incident-card sev-${inc.severity}`;
 
-    const lineBadges = (inc.line_numbers || []).map(ln => `<span class="line-tag">L${ln}</span>`).join(' ');
+    const lineBadges = (inc.line_numbers || []).map(ln => `<span class="line-tag">Line ${ln}</span>`).join('');
 
     card.innerHTML = `
-      <div class="incident-header">
-        <span class="incident-title">${inc.attack_type}</span>
-        <span class="sev-badge sev-${inc.severity}">${inc.severity}</span>
+      <div class="incident-card-top">
+        <div class="incident-headline">
+          <span class="sev-badge sev-${inc.severity}">${inc.severity}</span>
+          <h4 class="incident-title">${inc.attack_type}</h4>
+        </div>
+        <div class="incident-target-badge">
+          <span class="target-label">Target</span>
+          <code class="target-val">${inc.target_identifier}</code>
+        </div>
       </div>
-      <div class="incident-meta">
-        Target: <span class="incident-target">${inc.target_identifier}</span>
+
+      <p class="incident-reason">${inc.reason}</p>
+
+      <div class="incident-evidence-panel">
+        <div class="evidence-header">
+          <span class="evidence-title">Log Evidence (${inc.evidence_count} ${inc.evidence_count === 1 ? 'event' : 'events'})</span>
+        </div>
+        <div class="evidence-lines">
+          ${lineBadges}
+        </div>
       </div>
-      <div class="incident-reason">
-        ${inc.reason}
-      </div>
-      <div class="incident-evidence">
-        <strong>Lines (${inc.evidence_count}):</strong>
-        ${lineBadges}
-      </div>
-      <div class="incident-action">
-        <strong>Action:</strong> ${inc.suggested_action}
+
+      <div class="incident-action-panel">
+        <span class="action-label">Recommendation:</span>
+        <span class="action-text">${inc.suggested_action}</span>
       </div>
     `;
 
     listContainer.appendChild(card);
+  });
+}
+
+function returnToHome() {
+  if (eventSource) eventSource.close();
+  clearInterval(timerInterval);
+  clearSelectedFile();
+  sampleBtn.disabled = false;
+  uploadSection.style.display = 'block';
+  historySection.style.display = 'block';
+  progressSection.style.display = 'none';
+  reportSection.style.display = 'none';
+  currentView = 'home';
+  loadPastRuns();
+}
+
+// Nav link handler: only return home if NOT already on home page
+if (navHomeLink) {
+  navHomeLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (currentView !== 'home') {
+      returnToHome();
+    }
   });
 }
 
@@ -309,17 +362,4 @@ exportBtn.addEventListener('click', () => {
   dlAnchor.remove();
 });
 
-resetBtn.addEventListener('click', () => {
-  if (eventSource) eventSource.close();
-  clearInterval(timerInterval);
-  selectedFile = null;
-  fileInput.value = '';
-  fileInfo.textContent = '';
-  startBtn.disabled = true;
-  sampleBtn.disabled = false;
-  uploadSection.style.display = 'block';
-  historySection.style.display = 'block';
-  progressSection.style.display = 'none';
-  reportSection.style.display = 'none';
-  loadPastRuns();
-});
+resetBtn.addEventListener('click', returnToHome);

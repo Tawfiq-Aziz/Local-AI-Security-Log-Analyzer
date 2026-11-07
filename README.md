@@ -18,6 +18,20 @@ Built strictly within the assessment limits: **4 GB RAM maximum, 2 vCPU, no GPU,
 
 ---
 
+## User Interface
+
+### Upload & Analysis Dashboard
+Drag and drop `.log` or `.txt` files to analyze, or run immediate benchmarks using the sample log. View real-time resource telemetry and past report history:
+
+![Dashboard and Upload Interface](docs/images/dashboard_upload.png)
+
+### Security Threat Report
+Consolidated incident report displaying threat severity breakdown, target IP/user identity, explanation, exact log line citations, and actionable recommendations:
+
+![Security Threat Report](docs/images/threat_report.png)
+
+---
+
 ## System Requirements & Limits
 
 | Resource | Value | Note |

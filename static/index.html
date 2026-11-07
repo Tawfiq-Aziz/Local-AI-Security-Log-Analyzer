@@ -14,7 +14,7 @@
   <!-- Navigation Bar -->
   <header class="navbar">
     <div class="nav-brand">
-      <h1>Security Log Analyzer</h1>
+      <a href="/" id="navHomeLink" class="nav-title">Security Log Analyzer</a>
     </div>
     
     <div class="telemetry-bar">
@@ -45,6 +45,7 @@
 
       <div class="action-row">
         <button class="btn btn-primary" id="startBtn" disabled>Analyze Uploaded File</button>
+        <button class="btn btn-ghost" id="cancelFileBtn" style="display:none;">Discard</button>
         <button class="btn btn-secondary" id="sampleBtn">Analyze Sample Log</button>
       </div>
     </section>

@@ -1,6 +1,6 @@
 # AI Usage and Development Notes
 
-This document explains the tools used, the prompts we used to build the project, how we planned the token budget, and the real problems we encountered and fixed. Everything here matches the actual code in this repository.
+This document explains the tools used, the prompts used to build the project, how i planned the token budget, and the real problems encountered and fixed. Everything here matches the actual code in this repository.
 
 ---
 
@@ -17,7 +17,7 @@ This document explains the tools used, the prompts we used to build the project,
 
 The assessment brief gives a strict maximum limit of **2,048 tokens per AI call**. This budget must fit the system prompt, previous memory, log lines, and the model's generated answer.
 
-Here is the exact allocation we set in `config.py`:
+Here is the exact allocation set in `config.py`:
 
 | Part of Prompt | Budget | Purpose |
 | --- | --- | --- |
@@ -25,7 +25,7 @@ Here is the exact allocation we set in `config.py`:
 | **Memory State (Blackboard)** | ~350 tokens | Summary of what happened in earlier chunks (failed logins count, scanned paths). |
 | **Log Chunk Text** | ~1,050 tokens | The actual lines of the log file being analyzed in this call. |
 | **Model Output Reserve** | ~350 tokens | Room for the AI model to write its JSON reply without getting cut off. |
-| **Safety Margin** | ~48 tokens | Cushion to make sure we never exceed the 2,048 limit. |
+| **Safety Margin** | ~48 tokens | Cushion to make sure it never exceed the 2,048 limit. |
 | **Total** | **2,048 tokens** | Hard limit |
 
 ---
@@ -79,37 +79,35 @@ Assistant:
 ```
 
 ### C. Prompt Changes and Iterations
-During development, we updated and refined the prompt several times based on test results:
-1. **Added `<log_data>` XML tags for prompt injection defense**: At first, raw log lines were placed directly into the prompt. To prevent malicious log payloads from tricking the model into following instructions, we wrapped the log lines inside `<log_data>` tags and instructed the model to treat all text inside as passive data only.
-2. **Added rule against false positives**: The model initially flagged normal server errors and routine health check requests as attacks. We added a clear instruction: *"Do NOT report normal internal server errors or health checks as attacks without evidence."*
-3. **Provided an exact JSON schema**: Instead of just saying "return JSON", we provided the exact structure with keys (`attack_type`, `severity`, `target_identifier`, `line_numbers`, `reason`, `suggested_action`). This made parsing much more reliable.
-4. **Tuned generation length for CPU speed**: We reduced `max_new_tokens` to 150 with early stopping (`eos_token_id`) so the model stops talking once the JSON is complete, speeding up CPU execution significantly.
+During development i updated and refined the prompt several times based on test results:
+1. **Added `<log_data>` XML tags for prompt injection defense**: At first, raw log lines were placed directly into the prompt. To prevent malicious log payloads from tricking the model into following instructions,  wrapped the log lines inside `<log_data>` tags and instructed the model to treat all text inside as passive data only.
+2. **Added rule against false positives**: The model initially flagged normal server errors and routine health check requests as attacks.  added a clear instruction: *"Do NOT report normal internal server errors or health checks as attacks without evidence."*
+3. **Provided an exact JSON schema**: Instead of just saying "return JSON",  provided the exact structure with keys (`attack_type`, `severity`, `target_identifier`, `line_numbers`, `reason`, `suggested_action`). This made parsing much more reliable.
+4. **Tuned generation length for CPU speed**: reduced `max_new_tokens` to 150 with early stopping (`eos_token_id`) so the model stops talking once the JSON is complete, speeding up CPU execution significantly.
 
 ---
 
-## 4. Real Mistakes Encountered and How We Fixed Them
-
-During development, several real issues occurred that we had to troubleshoot and fix:
+## 4. Real Mistakes encountered and how i fixed them
 
 ### 1. Incomplete JSON Repair Logic Bug
-- **What happened**: When the AI generated cut-off JSON (e.g., `{"findings": [{"line_numbers": [54]`), our first repair function just counted missing `{` and `[` and closed them in a simple loop (`]]}}`). This created invalid syntax.
+- **What happened**: When the AI generated cut-off JSON (e.g., `{"findings": [{"line_numbers": [54]`), the first repair function just counted missing `{` and `[` and closed them in a simple loop (`]]}}`). This created invalid syntax.
 - **Why it failed**: In nested JSON, opening brackets happen in order: `{` then `[` then `{` then `[`. The closing brackets must be closed in reverse order: `]` then `}` then `]` then `}`.
-- **How we fixed it**: We rewrote `core/parser.py` using a bracket stack. It pushes opening brackets to a stack and pops when closed. Whatever remains on the stack at the end gets closed in exact reverse order, fixing the JSON reliably.
+- **How fixed it**:  rewrote `core/parser.py` using a bracket stack. It pushes opening brackets to a stack and pops when closed. Whatever remains on the stack at the end gets closed in exact reverse order, fixing the JSON reliably.
 
 ### 2. Hugging Face `hf-xet` Package Freezing on Windows
 - **What happened**: When installing `transformers` on Python 3.13, pip automatically pulled in `hf-xet`. When downloading model files, the process hung with 0 bytes downloaded.
 - **Why it failed**: `hf-xet` attempts to use git-xet bridges that fail or block without authentication on certain Windows configurations.
-- **How we fixed it**: We uninstalled `hf-xet` so `huggingface_hub` uses standard HTTP downloads. We also created `download_model.py` with direct chunk streaming, and built a standby engine in `model_runner.py` so the app is always functional.
+- **How fixed it**: uninstalled `hf-xet` so `huggingface_hub` uses standard HTTP downloads. also created `download_model.py` with direct chunk streaming, and built a standby engine in `model_runner.py` so the app is always functional.
 
 ### 3. PyTorch OpenMP Thread Thrashing on 2 vCPU
 - **What happened**: On CPU, PyTorch tried to spawn 60 worker threads across all hardware cores by default. This caused thread contention and slowed down inference.
-- **How we fixed it**: We explicitly added `torch.set_num_threads(2)` and `torch.set_num_interop_threads(2)` in `core/model_runner.py`. This strictly enforces the 2 vCPU limit from the assessment brief and keeps CPU usage predictable.
+- **How fixed it**: explicitly added `torch.set_num_threads(2)` and `torch.set_num_interop_threads(2)` in `core/model_runner.py`. This strictly enforces the 2 vCPU limit from the assessment brief and keeps CPU usage predictable.
 
 ### 4. Sample Log Token Size
 - **What happened**: The brief mentioned logs of "about 20,000 tokens", but counting the actual tokens in `Cultive8_Workspace_Agrigen_Server.log` showed 39,640 tokens (almost double).
-- **How we handled it**: Because our chunker calculates tokens dynamically rather than guessing line counts, it cleanly divided the file into distinct chunks (each under 1,050 tokens) and processed all of them without overflowing the 2,048-token context window on any call.
+- **How fixed it**: Because the chunker calculates tokens dynamically rather than guessing line counts, it cleanly divided the file into distinct chunks (each under 1,050 tokens) and processed all of them without overflowing the 2,048-token context window on any call.
 
 ### 5. Small Model Echoing Template Placeholders
 - **What happened**: When running inference with lightweight models like SmolLM2-135M on CPU, the model occasionally echoed back the example template from the system prompt (e.g. `target_identifier: "IP or username"` and `reason: "Short explanation"`).
 - **Why it was a problem**: The parser saw valid JSON syntax, but the content was just placeholder text instead of real attack data.
-- **How we fixed it**: We added a check in `core/model_runner.py` and `core/synthesizer.py` that discards findings containing template placeholders (like "IP or username" or "Short explanation") and merges the heuristic safety net, ensuring real attacks are never missed.
+- **How fixed it**: added a check in `core/model_runner.py` and `core/synthesizer.py` that discards findings containing template placeholders (like "IP or username" or "Short explanation") and merges the heuristic safety net, ensuring real attacks are never missed.

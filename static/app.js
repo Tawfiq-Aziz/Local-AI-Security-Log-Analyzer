@@ -1,4 +1,4 @@
-// Local AI Security Log Analyzer - Frontend Controller
+// Security Log Analyzer - Frontend Controller
 
 let selectedFile = null;
 let currentJobId = null;
@@ -26,35 +26,24 @@ const metricTime = document.getElementById('metricTime');
 const feedConsole = document.getElementById('feedConsole');
 const exportBtn = document.getElementById('exportBtn');
 const resetBtn = document.getElementById('resetBtn');
-
-// Telemetry Elements
-const ramText = document.getElementById('ramText');
-const ramFill = document.getElementById('ramFill');
 const procRamText = document.getElementById('procRamText');
+const statusBadge = document.getElementById('statusBadge');
 
-// 1. Telemetry Polling (Every 3 seconds)
+// 1. Telemetry Polling
 async function updateTelemetry() {
   try {
     const res = await fetch('/api/telemetry');
     if (!res.ok) return;
     const data = await res.json();
-    ramText.textContent = `${data.system_used_ram_mb} / ${data.ram_limit_mb} MB`;
-    procRamText.textContent = `${data.process_ram_mb} MB`;
-    const percent = Math.min(100, Math.round((data.system_used_ram_mb / data.ram_limit_mb) * 100));
-    ramFill.style.width = `${percent}%`;
-    if (data.is_near_ram_limit) {
-      ramFill.style.background = '#f85149';
-    } else {
-      ramFill.style.background = '#58a6ff';
+    if (procRamText) {
+      procRamText.textContent = `${data.process_ram_mb} MB`;
     }
-  } catch (err) {
-    // Keep telemetry silent on network error
-  }
+  } catch (err) {}
 }
 setInterval(updateTelemetry, 3000);
 updateTelemetry();
 
-// 2. Drag and Drop File Handlers
+// 2. File Selection & Drag-and-Drop
 dropzone.addEventListener('click', () => fileInput.click());
 
 dropzone.addEventListener('dragover', (e) => {
@@ -122,7 +111,7 @@ sampleBtn.addEventListener('click', async () => {
   }
 });
 
-// 4. Connect to SSE Stream
+// 4. Stream Analysis Progress via SSE
 function beginAnalysisStream(jobId, lineCount) {
   currentJobId = jobId;
   uploadSection.style.display = 'none';
@@ -138,7 +127,7 @@ function beginAnalysisStream(jobId, lineCount) {
     metricTime.textContent = `${elapsed}s`;
   }, 200);
 
-  feedConsole.innerHTML = `<div class="feed-entry system">[SYSTEM] Analysis queued for Job ID: ${jobId} (${lineCount} lines)</div>`;
+  feedConsole.innerHTML = `<div class="feed-entry system">Job ${jobId} initialized (${lineCount} lines)</div>`;
 
   eventSource = new EventSource(`/api/stream/${jobId}`);
 
@@ -164,7 +153,7 @@ function beginAnalysisStream(jobId, lineCount) {
           findings.forEach((f) => {
             const entry = document.createElement('div');
             entry.className = 'feed-entry alert';
-            entry.textContent = `[!] Chunk ${msg.chunk_index}: ${f.attack_type || 'Attack'} detected (${f.target_identifier || 'Target'})`;
+            entry.textContent = `Chunk ${msg.chunk_index}: ${f.attack_type || 'Threat'} detected (${f.target_identifier || 'Target'})`;
             feedConsole.appendChild(entry);
             feedConsole.scrollTop = feedConsole.scrollHeight;
           });
@@ -185,7 +174,6 @@ function beginAnalysisStream(jobId, lineCount) {
   };
 
   eventSource.onerror = () => {
-    // If disconnected, poll for completion
     setTimeout(async () => {
       try {
         const res = await fetch(`/api/report/${jobId}`);
@@ -200,7 +188,7 @@ function beginAnalysisStream(jobId, lineCount) {
   };
 }
 
-// 5. Render Final Deduplicated Report
+// 5. Render Deduplicated Final Report
 function renderReport(report) {
   progressSection.style.display = 'none';
   reportSection.style.display = 'block';
@@ -212,14 +200,14 @@ function renderReport(report) {
   document.getElementById('kpiLow').textContent = sum.severity_counts?.Low || 0;
 
   document.getElementById('reportSubtitle').textContent = 
-    `Analyzed ${sum.total_lines_analyzed || 0} lines across ${sum.total_chunks_processed || 0} chunks in ${sum.total_analysis_time_seconds || 0}s (${sum.total_tokens_used || 0} total tokens)`;
+    `${sum.total_lines_analyzed || 0} lines • ${sum.total_chunks_processed || 0} chunks • ${sum.total_analysis_time_seconds || 0}s • ${sum.total_tokens_used || 0} tokens`;
 
   const listContainer = document.getElementById('incidentsList');
   listContainer.innerHTML = '';
 
   const incidents = report.incidents || [];
   if (incidents.length === 0) {
-    listContainer.innerHTML = '<p style="color: #8b949e;">No confirmed security attacks detected in this log file.</p>';
+    listContainer.innerHTML = '<p class="empty-state">No security threats detected in this log file.</p>';
     return;
   }
 
@@ -235,17 +223,17 @@ function renderReport(report) {
         <span class="sev-badge sev-${inc.severity}">${inc.severity}</span>
       </div>
       <div class="incident-meta">
-        Target / Offender: <span class="incident-target">${inc.target_identifier}</span>
+        Target: <span class="incident-target">${inc.target_identifier}</span>
       </div>
       <div class="incident-reason">
         ${inc.reason}
       </div>
       <div class="incident-evidence">
-        <strong>Evidence Lines (${inc.evidence_count}):</strong>
+        <strong>Lines (${inc.evidence_count}):</strong>
         ${lineBadges}
       </div>
       <div class="incident-action">
-        <strong>Suggested Action:</strong> ${inc.suggested_action}
+        <strong>Action:</strong> ${inc.suggested_action}
       </div>
     `;
 
@@ -270,7 +258,7 @@ resetBtn.addEventListener('click', () => {
   clearInterval(timerInterval);
   selectedFile = null;
   fileInput.value = '';
-  fileInfo.textContent = 'No file selected';
+  fileInfo.textContent = '';
   startBtn.disabled = true;
   sampleBtn.disabled = false;
   uploadSection.style.display = 'block';

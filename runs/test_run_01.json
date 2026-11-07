@@ -9,9 +9,9 @@
       "Medium": 0,
       "Low": 0
     },
-    "total_tokens_used": 72120,
+    "total_tokens_used": 72214,
     "prompt_tokens": 70432,
-    "output_tokens": 1688,
+    "output_tokens": 1782,
     "total_analysis_time_seconds": 3.36
   },
   "incidents": [
@@ -49,7 +49,7 @@
         189
       ],
       "evidence_count": 12,
-      "reason": "Observed 1 failed login attempt(s) with HTTP 401 invalid_password.",
+      "reason": "Observed 1 failed login attempt(s) for account 'workspace.admin' with HTTP 401 invalid_password.",
       "suggested_action": "Block IP 203.0.113.44 and enforce account lockout / rate limiting on auth endpoints."
     },
     {
@@ -71,13 +71,13 @@
     },
     {
       "attack_type": "Brute Force / Credential Stuffing",
-      "target_identifier": "198.51.100.96 (workspace.admin)",
+      "target_identifier": "198.51.100.96 (field.officer)",
       "severity": "High",
       "line_numbers": [
         238
       ],
       "evidence_count": 1,
-      "reason": "Observed 1 failed login attempt(s) with HTTP 401 invalid_password.",
+      "reason": "Observed 1 failed login attempt(s) for account 'field.officer' with HTTP 401 invalid_password.",
       "suggested_action": "Block IP 198.51.100.96 and enforce account lockout / rate limiting on auth endpoints."
     }
   ],

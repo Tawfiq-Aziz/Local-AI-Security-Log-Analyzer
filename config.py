@@ -14,12 +14,10 @@ LOG_CHUNK_BUDGET = 1050
 RESERVED_OUTPUT_TOKENS = 350
 
 # Default model: HuggingFaceTB/SmolLM2-135M-Instruct
-# Ultra-lightweight (135M parameters, ~270MB weights), runs offline from local disk,
-# executes fast on 2 CPU cores, and fits easily inside the 4GB RAM budget (<350MB RAM).
 DEFAULT_MODEL_NAME = "HuggingFaceTB/SmolLM2-135M-Instruct"
 
 # Default compute device: 'cpu' strictly complies with the 2 vCPU, no-GPU requirement.
 DEFAULT_DEVICE = "cpu"
 
-# Memory limit in Megabytes (4 GB from the brief)
+# Memory limit in Megabytes 
 MAX_RAM_MB = 4096
